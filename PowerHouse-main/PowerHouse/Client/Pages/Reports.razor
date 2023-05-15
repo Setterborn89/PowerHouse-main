@@ -1,0 +1,194 @@
+﻿
+@page "/reports"
+@using Microsoft.AspNetCore.Authorization;
+@using Newtonsoft.Json;
+@using PowerHouse.Shared.DTO
+@using System.Net;
+@attribute [Authorize]
+@inject IDialogService DialogService
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<div>
+    @if(AllReports.Count > 0)
+    {
+        <MudTable Items="@AllReports" Hover="true" class="custom-table">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">All reports</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" @oninput="Search" Placeholder="Search..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0 searchBar"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.Id)">ReportId</MudTableSortLabel></MudTh>
+                <MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.Reason)">Reason</MudTableSortLabel></MudTh>
+                <MudTh class="th">ObjectId</MudTh>
+                <MudTh class="th">Object text</MudTh>
+                <MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.Type)">ObjectType</MudTableSortLabel></MudTh>
+                <MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.Reported.ToShortDateString())">Reported Date</MudTableSortLabel></MudTh>
+                @*<MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.Reporter)">Reported by</MudTableSortLabel></MudTh>*@
+                <MudTh class="th"><MudTableSortLabel class="th" SortBy="new Func<ReportDTO, object>(x => x.IsClosed)">Status</MudTableSortLabel></MudTh>
+                @if(_authState.User.IsInRole("Admin"))
+                {
+                    <MudTh class="th">Options</MudTh>
+                }
+                else
+                {
+                    <MudTh class="th">Decision</MudTh>
+                }
+            </HeaderContent>
+            <RowTemplate Context="ReportDTO rowContext">
+                <MudTd DataLabel="ReportId">@rowContext.Id</MudTd>
+                <MudTd DataLabel="Reason">@rowContext.Reason</MudTd>
+                <MudTd DataLabel="ObjectId">@((rowContext.Type == PowerHouse.Shared.Enums.Type.Message) ? rowContext.Message.Id : rowContext.Conversation.Id)</MudTd>
+                <MudTd DataLabel="Object text">@((rowContext.Type == PowerHouse.Shared.Enums.Type.Message) ? rowContext.Message.Text : rowContext.Conversation.Topic)</MudTd>
+                <MudTd DataLabel="ObjectType">@rowContext.Type.ToString()</MudTd>
+                <MudTd DataLabel="Reported date">@rowContext.Reported.ToShortDateString()</MudTd>
+                @*<MudTd DataLabel="Reported by">@rowContext.Reporter.Username</MudTd>*@
+                <MudTd DataLabel="Status">@(rowContext.IsClosed ? "Closed" : "Open")</MudTd>
+                @if(_authState.User.IsInRole("Admin"))
+                {
+                    @if(!@rowContext.IsChecked)
+                    {
+                        <MudTd DataLabel="Options"> <MudButton @onclick="() => ShowDialog(rowContext)">edit</MudButton></MudTd>
+                    }
+                    else
+                    {
+                        <MudTd></MudTd>
+                    }
+                }
+                else
+                {
+                    <MudTd DataLabel="Decision">@((rowContext.Decision == null) ? "No action taken yet" : rowContext.Decision)</MudTd>
+                
+                }
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+    else
+    {
+        <div class="no-content">
+            <h1>No reports created from you!</h1>
+        </div>
+    }
+</div>
+<style scoped>
+    .th,
+    label,
+    h6,
+    .mud-button-label,
+    .mud-snackbar-icon,
+    .mud-snackbar-content-message,
+    .mud-snackbar-content-message > svg {
+        color: #00C087 !important;
+    }
+
+
+    .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-text{
+        color: #fff !important;
+    }
+
+    .mud-icon-size-medium{
+        color: #fff !important;
+    }
+
+
+    td, 
+    .mud-toolbar,
+    .mud-ripple-icon > span,
+    .mud-table-page-number-information,
+    .mud
+    .mud-input-slot{
+        color:#E2E2E2 !important;
+    }
+    .custom-table{
+        background-color: #19191D;
+        /*color: #E2E2E2;*/
+    }
+
+    .report-snackbar{
+        background-color: #32323A;
+    }
+    
+    .no-content{
+        display: flex;
+        justify-content: center;
+        color: #00C087 !important;
+    }
+</style>
+
+@code {
+    public List<ReportDTO> AllReports { get; set; } = new List<ReportDTO>();
+
+    private string searchString = string.Empty;
+    private AuthenticationState _authState;
+    private HttpResponseMessage? response;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        if(_authState.User.IsInRole("Admin"))
+        {       
+            response = await Http.GetAsync($"/api/report");
+        }
+        else
+        {
+            Guid userId = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value);
+            response = await Http.GetAsync($"/api/report?userId={userId}");
+        }
+
+
+        if (response != null && response.StatusCode == HttpStatusCode.OK)
+        {
+            var data = await response.Content.ReadAsStringAsync();
+            AllReports = JsonConvert.DeserializeObject<List<ReportDTO>>(data);
+        }
+    }
+
+    async Task ShowDialog(ReportDTO report)
+    {
+        DialogParameters parameters = new DialogParameters { ["SelectedReport"] = report };
+        var dialog = await DialogService.ShowAsync<ReportDialog>("Report information", parameters);
+        DialogResult result = await dialog.Result;
+
+        if(!result.Canceled)
+        {
+            ReportDTO editedReport = result.Data as ReportDTO;
+            ReportDTO existingReport = AllReports.FirstOrDefault(x => x.Id == editedReport.Id);
+
+            existingReport.Reason = editedReport.Reason;
+            existingReport.IsChecked = editedReport.IsChecked;
+            existingReport.IsClosed = editedReport.IsClosed;
+            existingReport.Decision = editedReport.Decision;
+            existingReport.Action = editedReport.Action;
+            StateHasChanged();
+
+            Snackbar.Add($"Updated successfully", Severity.Success, config => { config.SnackbarTypeClass = "report-snackbar"; });
+
+        }
+
+
+    }
+
+    private void Search()
+    {
+        List<ReportDTO> filteredReports = new List<ReportDTO>();
+        if(string.IsNullOrEmpty(searchString) || string.IsNullOrWhiteSpace(searchString))
+        {
+
+        }
+        AllReports = AllReports.Where(x =>
+             x.Id.ToString().Contains(searchString) ||
+             x.Reason.Contains(searchString) ||
+             x.Decision.Contains(searchString) ||
+             x.Reported.ToString().Contains(searchString)
+        ).ToList();
+
+        StateHasChanged();
+        //AllReports = AllReports.whe
+    }
+}

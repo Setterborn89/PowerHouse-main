@@ -1,0 +1,98 @@
+﻿@inject AuthenticationStateProvider _authenticationStateProvider
+@page "/my-topics"
+@using Microsoft.AspNetCore.Authorization;
+@using Newtonsoft.Json;
+@using System.Net;
+@using PowerHouse.Client.Services;
+@using PowerHouse.Shared.DTO;
+@inject ISnackbar Snackbar
+@inject IAppState AppState
+@attribute [Authorize]
+
+<div class="your-topics">
+<table class="table table-dark">
+    <thead>
+        <tr>
+            <th scope="col">My topics</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Conversations != null && Conversations.Count > 0)
+        {
+            @foreach (var c in Conversations)
+            {
+                <tr>
+                    <th scope="row">
+                        <div class="item">
+                            <span>@c.Topic</span>
+                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteConversation(c.Id)" />
+                        </div>
+                    </th>
+                </tr>
+            }
+        }
+        else
+        {
+            <span class="text">No conversations created</span>
+        }
+    </tbody>
+</table>
+</div>
+<style scoped>
+    .text {
+        text-align: center;
+        font-size: 24px;
+        margin: 16px 0;
+    }
+    .your-topics thead tr {
+        font-size: 16px;
+        text-transform: uppercase;
+        color: #00C087;
+    }
+    .your-topics .item {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+    }
+</style>
+@code {
+    [Inject] private NavigationManager _navigationManager { get; set; }
+    [Inject] private HttpClient Http { get; set; }
+    public List<ConversationDTO>? Conversations { get; set; }
+    private AuthenticationState _authState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authState = await _authenticationStateProvider.GetAuthenticationStateAsync();
+        if (_authState.User.Identity.IsAuthenticated)
+        {
+            await GetConversationsAsync();
+        }
+    }
+    private async Task DeleteConversation(Guid id)
+    {
+        var response = await Http.DeleteAsync($"/api/Conversation/{id}");
+        if (response.IsSuccessStatusCode)
+        {
+            Conversations = new();
+            await GetConversationsAsync();
+            AppState.NotifyStateChanged();
+            Snackbar.Add($"Conversation was removed");
+        }
+    }
+
+    private async Task GetConversationsAsync()
+    {
+        var currentUserId = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value);
+        var response = await Http.GetAsync($"/api/User/{currentUserId}");
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var data = await response.Content.ReadAsStringAsync();
+            var currentUser = JsonConvert.DeserializeObject<UserDTO>(data);
+            if (currentUser.Conversations != null && currentUser.Conversations.Count > 0)
+            {
+                Conversations = currentUser.Conversations.Where(c => c.AuthorId == currentUser.Id).ToList();
+            }
+        }
+    }
+}

@@ -1,0 +1,12 @@
+@using Microsoft.AspNetCore.Authorization;
+@using Newtonsoft.Json;
+@using PowerHouse.Shared.DTO;
+@inject HttpClient _httpClient
+@page "/topic/{Id}"
+@attribute [Authorize]
+
+<Conversation ConversationId=Guid.Parse(Id)/>
+@code {
+    [Parameter]
+    public string Id { get; set; }
+}

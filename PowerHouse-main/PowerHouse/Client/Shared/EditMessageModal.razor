@@ -1,0 +1,83 @@
+﻿@using PowerHouse.Shared.DTO;
+
+<MudDialog Class="confirm">
+	<DialogContent>
+		<EditForm Model="Message" class="confirm-modal">
+			<h2 class="confirm-title">Edit your message</h2>
+			<div class="text-field__edit-message">
+				<InputTextArea rows="5" type="text" cols="50" wrap="soft" class="input-field" @bind-Value="Message.Text" />
+			</div>
+			<div class="confirm-modal__buttons">
+				<MudButton Class="confirm-modal__button--cancel" Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" OnClick="Cancel">Cancel</MudButton>
+				<MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.SaveAlt" Color="Color.Success" FullWidth="true" OnClick="Submit">Save</MudButton>
+			</div>
+		</EditForm>
+	</DialogContent>
+</MudDialog>
+
+<style scoped>
+	.confirm {
+		width: 100%;
+		max-width: 400px;
+		background-color: #32323A;
+	}
+
+	.confirm-title {
+		font-size: 20px;
+		font-weight: 700;
+		color: #00C087;
+		text-transform: uppercase;
+		margin: 0;
+	}
+
+	.confirm-modal {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		padding: 24px;
+		width: 100%;
+		background-color: #32323A;
+		color: #F0F0F1;
+	}
+
+	.confirm-modal__buttons {
+		display: flex;
+		gap: 16px;
+	}
+
+	.confirm-modal__button--cancel {
+		color: #fff
+	}
+	.input-field {
+		width: 100%;
+		padding: 4px;
+		font-size: 12px;
+	}
+</style>
+@code {
+	[CascadingParameter] MudDialogInstance MudDialog { get; set; }
+	[Parameter]
+	public EventCallback<bool> EditItem { get; set; }
+	[Parameter]
+	public MessageDTO Message { get; set; }
+	[Parameter]
+	public EventCallback<MessageDTO> EditedMessage { get; set; }
+	public string OriginalMessageText { get; set; }
+
+	protected override void OnInitialized()
+	{
+		OriginalMessageText = Message.Text;
+	}
+	async Task Submit() 
+	{
+		MudDialog.Close(DialogResult.Ok(true)); 
+		await EditedMessage.InvokeAsync(Message);
+	}
+
+	void Cancel()
+	{
+		Message.Text = OriginalMessageText;
+		MudDialog.Cancel();
+	}
+}
+

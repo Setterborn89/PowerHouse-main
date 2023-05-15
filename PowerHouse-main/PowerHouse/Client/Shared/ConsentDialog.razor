@@ -1,0 +1,44 @@
+﻿@using Newtonsoft.Json;
+@using PowerHouse.Client.Authorization;
+@using PowerHouse.Shared.DTO;
+@using System.Net;
+@inject NavigationManager Navigation
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+
+<MudDialog DisableSidePadding="true" class="dialog">
+    <DialogContent>
+        <MudContainer Style=" overflow-y: scroll; min-width 150px">
+            <h4>Privacy Policy for PowerHouse</h4>
+            <p>
+                At PowerHouse one of our main priorities is the privacy of our visitors. This Privacy Policy document contains types of information that is collected and recorded by PowerHouse and how we use it.
+                If you have additional questions or require more information about our Privacy Policy, do not hesitate to contact us. 
+            </p><br>
+            <p>
+                By clicking accept you are agreeing to our GDPR policy linked below
+            </p><br>
+            <p>
+                Have a wonderful day!
+            </p>
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" @onclick="More">GDPR policy</MudButton>
+        <MudButton @onclick="async () => await Accept()">Accept</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private async Task Accept()
+    {
+        await sessionStorage.SetItemAsync("consent", "Yes");
+        MudDialog.Close(DialogResult.Ok("Ok"));
+    }
+
+    public void More()
+    {
+        Navigation.NavigateTo("/gdpr");
+        MudDialog.Cancel();
+    }
+}

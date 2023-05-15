@@ -1,0 +1,48 @@
+﻿@using PowerHouse.Shared.DTO;
+<MudContainer Class="mt-16 px-8" MaxWidth="MaxWidth.False">
+    <MudGrid>
+        <div class="popular_label"> <span class="popular_label_title">@Title</span></div>
+        <MudItem xs="12" sm="6" md="12">
+            <MudPaper Elevation="2" Class="pa-4"
+                      Style="height: 200px;
+                        background-color: #19191D;
+                        overflow-x: auto">
+                <div style="margin-top: 15px; margin-bottom: 15px">
+                    <MudGrid>
+                        @if(Conversations != null)
+                        {
+                            @foreach (var item in Conversations)
+                            {
+                                <MudItem md="3">
+                                    <MudPaper Elevation="2" Class="pa-4" Style="height: 50px; text-align: center;">
+                                        <button class="topic_text_position">
+                                            <span class="topic_text_style" @onclick="() => NavigateToTopicAsync(item.Id)">
+                                                # @item.Topic
+                                            </span>
+                                            @if (item.Topic.Length > 19)
+                                            {
+                                                <span class="tooltip_text">@item.Topic</span>
+                                            }
+                                        </button>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        }
+                    </MudGrid>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    [Parameter] public List<ConversationDTO> Conversations { get; set; } = new();
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public EventCallback<Guid> NavigateClick { get; set; }
+    
+
+    protected async Task NavigateToTopicAsync(Guid id)
+    {
+        await NavigateClick.InvokeAsync(id);
+    }
+}

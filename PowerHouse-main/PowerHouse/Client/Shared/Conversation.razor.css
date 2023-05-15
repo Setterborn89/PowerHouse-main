@@ -1,0 +1,58 @@
+﻿
+.conversation_functions{
+    display: flex;
+}
+
+.all_members_size {
+    width: 200px;
+}
+
+.members_list_styling {
+    max-height: 800px;
+    position: relative;
+    overflow: auto;
+    border-left: 2px solid #00C087;
+    border-right: 2px solid #00C087;
+    border-bottom: 2px solid #00C087;
+    background-color: #292A31;
+    z-index: 2;
+}
+
+.member_styling {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: white;
+    max-width: 120px;
+}
+
+.add_member {
+    display: flex;
+}
+
+.input_email {
+    width: 300px;
+    padding-left: 10px;
+    margin: 8px 0;
+    margin-left: 10px;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    max-height: 40px;
+}
+
+@media (max-width: 640.98px) {
+    .chat-container{
+        width:75vw;
+    }
+
+    .topic {
+        min-width: 250px;
+    }
+
+    .input_email{
+        width: 150px;
+    }
+}

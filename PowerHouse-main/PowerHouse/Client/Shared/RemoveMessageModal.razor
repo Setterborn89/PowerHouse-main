@@ -1,0 +1,53 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client;
+<MudDialog Class="confirm">
+	<DialogContent>
+        <div class="confirm-modal">
+		    <h2 class="confirm-title">Delete confirmation</h2>
+            <span>Are you sure you want to remove the message? This action cannot be undone.</span>
+            <div class="confirm-modal__buttons">
+                <MudButton Class="confirm-modal__button--cancel" Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" OnClick="Cancel">Cancel</MudButton>
+                <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Error" FullWidth="true" OnClick="Submit">Remove</MudButton>
+            </div>
+        </div>
+	</DialogContent>
+</MudDialog>
+<style scoped>
+    .confirm{
+        width: 100%;
+        max-width: 400px;
+        background-color: #32323A;
+    }
+    .confirm-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #00C087;
+        text-transform: uppercase;
+        margin: 0;
+    }
+    .confirm-modal{
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px;
+        width: 100%;
+        background-color: #32323A;
+        color: #F0F0F1;
+    }
+    .confirm-modal__buttons{
+        display: flex;
+        gap: 16px;
+    }
+    .confirm-modal__button--cancel{
+        color: #fff
+    }
+</style>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter]
+    public EventCallback<bool> DeleteItem { get; set; }
+    [Parameter]
+    public bool IsVisible { get; set; }
+    void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    void Cancel() => MudDialog.Cancel();
+}

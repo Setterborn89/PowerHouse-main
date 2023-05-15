@@ -1,0 +1,163 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client;
+@using PowerHouse.Shared.DTO;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDialogService DialogService
+<div class="message-card">
+    <div class="label">
+        <div class="label__content">
+            @Message.Author.Username
+            @if (TopicAuthorId == Message?.AuthorId)
+            {
+                <span class="label--mod"> Mod </span>
+            }
+            @if(Message.IsEdited)
+            {
+                <span>Edited at: @Message.EditDate</span>
+            }
+            else
+            {
+                <span>@Message.CreateDate</span>
+            }
+            
+        </div>
+        <div class="label__icon">
+            @if (!Message.IsDeleted)
+            {
+                <MudMenu Class="dropdown" Icon="@Icons.Material.Filled.MoreHoriz">
+                    @if (Message.Author.Id == UserId)
+                    {
+                        <MudMenuItem OnClick="@((e) => EditMessage(Message))">Edit message </MudMenuItem>
+                        <MudMenuItem OnClick="@((e) => DeleteMessage(Message.Id))">Remove message</MudMenuItem>
+                        <MudMenuItem OnClick="@((e) => ReportMessage(Message))">Report message</MudMenuItem> //Ska bort i slutprodukt
+
+                    }
+                    else
+                    {
+                        <MudMenuItem OnClick="@((e) => ReportMessage(Message))">Report message</MudMenuItem>
+                    }
+                </MudMenu>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+
+        <span>@Message.Text</span>
+    </div>
+</div>
+
+<style>
+    .message-card {
+        min-width: 250px;
+        max-width: 350px;
+    }
+
+    .dropdown {
+        right: 0;
+    }
+
+    .card {
+        border-radius: 8px;
+        padding: 8px;
+        border: none;
+        background-color: #F0F0F1;
+        color: #141417;
+        font-size: 12px;
+    }
+
+    .label {
+        display: flex;
+        justify-content: space-between;
+    }
+    .label__content {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 400;
+        color: #D2D2D6;
+    }
+    .label button.mud-button-root.mud-icon-button.mud-ripple.mud-ripple-icon {
+        padding: 0;
+        color: #D2D2D6;
+    }
+    .label--mod {
+        color: #D03131;
+        font-weight: 700;
+    }
+</style>
+
+@code {
+
+    [Parameter]
+    public MessageDTO Message { get; set; }
+    [Parameter]
+    public Guid TopicAuthorId { get; set; }
+    public Guid UserId { get; set; }
+    private AuthenticationState _authState;
+    [Parameter]
+    public EventCallback<bool> DeleteItem { get; set; }
+    [Parameter]
+    public EventCallback<bool> EditItem { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        UserId = new Guid(_authState?.User?.Claims?.FirstOrDefault(x => x.Type == "oid")?.Value ?? "00000000-0000-0000-0000-000000000000"); 
+    }
+
+    public async Task DeleteMessage(Guid Id)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<RemoveMessageModal>("", options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            await DeleteMessage();
+        }
+    }
+    public async Task EditMessage(MessageDTO message)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var parameters = new DialogParameters();
+        parameters.Add("Message", message);
+        var dialog = await DialogService.ShowAsync<EditMessageModal>("", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            await EditMessage();
+        }
+    }
+    public async Task ReportMessage(MessageDTO message)
+    {
+        ReportDTO reportedMessage = new()
+            {
+                MessageId = message.Id,
+                Type = PowerHouse.Shared.Enums.Type.Message,
+                ReporterId = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value)
+            };
+
+        DialogParameters parameters = new DialogParameters { ["ReportedItem"] = reportedMessage, ["Message"] = message };
+        
+        var dialog = await DialogService.ShowAsync<ReportMessageModal>("Report message", parameters);
+        DialogResult result = await dialog.Result;
+    }
+
+
+
+    private async Task EditMessage()
+    {
+        await EditItem.InvokeAsync(true);
+    }
+
+    private async Task ReportMessage()
+    {
+        await EditItem.InvokeAsync(true);
+    }
+
+    private async Task DeleteMessage()
+    {
+        await DeleteItem.InvokeAsync(true);
+    }
+  
+}

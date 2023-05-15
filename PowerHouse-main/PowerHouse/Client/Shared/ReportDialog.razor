@@ -1,0 +1,80 @@
+﻿@using Newtonsoft.Json;
+@using PowerHouse.Shared.DTO;
+@using System.Net;
+@using System.Text;
+@inject HttpClient Http
+
+
+<MudDialog DisableSidePadding="true" report="@SelectedReport" class="dialog">
+    <DialogContent>
+        <MudContainer Style=" overflow-y: scroll; min-width 150px">
+                    <MudTextField T="string" Label="Reason" Variant="Variant.Filled" Text="@(SelectedReport.Reason)" Lines="3" Disabled />
+                    <MudTextField T="string" Label="Message text" Variant="Variant.Filled" Text="@((SelectedReport.Type == PowerHouse.Shared.Enums.Type.Message) ? SelectedReport.Message.Text : SelectedReport.Conversation.Topic)" Lines="3" Disabled />
+                    <MudSelect T="PowerHouse.Shared.Enums.Action" Label="Action" Variant="Variant.Filled" AnchorOrigin="Origin.BottomCenter" MultiSelection="false" @bind-Value="SelectedReport.Action">
+                        <MudSelectItem Value="PowerHouse.Shared.Enums.Action.NoAction" />
+                        <MudSelectItem Value="PowerHouse.Shared.Enums.Action.Block" />
+                    </MudSelect>
+                    <MudTextField T="string" Label="Decision" @bind-Value="SelectedReport.Decision" Variant="Variant.Filled" Placeholder="Type why you choosed this action" Lines="3" Required RequiredError="You need to type why you choosed that action!" />
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" @onclick="Close">Close</MudButton>
+        <MudButton @onclick="EditReport">Act</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style scoped>
+    .mud-list,
+    .mud-tabs-toolbar,
+    .mud-tabs-toolbar-content,
+    .dialog{
+        background-color: #19191D !important;
+        color: #E2E2E2 !important;
+    }
+
+    .dialog{
+        width: 500px;
+        max-height: 550px;
+    }
+
+    .mud-tab{
+        color: #00C087 !important;
+    }
+
+    .mud-typography-h6{
+        text-align: center;
+    }
+    textarea,
+    input{
+        color: #E2E2E2 !important;
+    }
+</style>
+
+
+@code {
+    [Parameter]
+    public ReportDTO SelectedReport { get; set; }
+
+    [CascadingParameter] 
+    MudDialogInstance MudDialog { get; set; }
+
+    public async Task EditReport()
+    {
+        var jsonString = JsonConvert.SerializeObject(SelectedReport);
+
+        HttpContent httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
+        var response = await Http.PutAsync($"/api/Report", httpContent);
+
+        if (response.IsSuccessStatusCode)
+        {
+            ReportDTO updatedReport = JsonConvert.DeserializeObject<ReportDTO>(await response.Content.ReadAsStringAsync());
+            MudDialog.Close(DialogResult.Ok(updatedReport));
+        }
+
+    }
+    public async Task Close()
+    {
+
+        MudDialog.Close(DialogResult.Cancel());
+    }
+}

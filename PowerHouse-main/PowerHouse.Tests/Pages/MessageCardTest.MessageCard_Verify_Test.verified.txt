@@ -1,0 +1,46 @@
+﻿<div class="message-card"><div class="label"><div class="label__content">Efraim Caspersson<span>9999-12-31 23:59:59</span></div>
+        <div class="label__icon"><div Class="mud-menu dropdown" blazor:onmouseenter="1" blazor:onmouseleave="2"><button blazor:onclick="3" type="button" class="mud-button-root mud-icon-button mud-ripple mud-ripple-icon" blazor:onclick:stopPropagation blazor:elementReference=""><span class="mud-icon-button-label"><svg class="mud-icon-root mud-svg-icon mud-icon-size-medium" focusable="false" viewBox="0 0 24 24" aria-hidden="true"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></span></button><div id="popover-Guid_1" class="mud-popover-cascading-value"></div>
+    <div class="mud-overlay" style="" blazor:onclick="4" blazor:onclick:stopPropagation></div></div></div></div>
+
+    <div class="card"><span>Swag in Ohio</span></div></div>
+
+<style>
+    .message-card {
+        min-width: 250px;
+        max-width: 350px;
+    }
+
+    .dropdown {
+        right: 0;
+    }
+
+    .card {
+        border-radius: 8px;
+        padding: 8px;
+        border: none;
+        background-color: #F0F0F1;
+        color: #141417;
+        font-size: 12px;
+    }
+
+    .label {
+        display: flex;
+        justify-content: space-between;
+    }
+    .label__content {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 400;
+        color: #D2D2D6;
+    }
+    .label button.mud-button-root.mud-icon-button.mud-ripple.mud-ripple-icon {
+        padding: 0;
+        color: #D2D2D6;
+    }
+    .label--mod {
+        color: #D03131;
+        font-weight: 700;
+    }
+</style>

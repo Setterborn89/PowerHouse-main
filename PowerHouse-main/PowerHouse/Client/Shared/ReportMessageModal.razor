@@ -1,0 +1,78 @@
+﻿@using Newtonsoft.Json;
+@using PowerHouse.Shared.DTO;
+@using System.Net;
+@using System.Text;
+@inject HttpClient Http
+
+
+<MudDialog DisableSidePadding="true" report="@ReportedItem" class="dialog">
+    <DialogContent>
+        <MudContainer Style=" overflow-y: scroll; min-width 150px">
+            <MudTextField T="string" Variant="Variant.Filled" Text="@((ReportedItem.Type == PowerHouse.Shared.Enums.Type.Message) ? Message?.Text : Conversation?.Topic)" Lines="3" Disabled />
+            <MudTextField T="string" Label="Reason" Variant="Variant.Filled" @bind-Value="@(ReportedItem.Reason)" Lines="3" />
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Style="color: #00C087" @onclick="Close">Close</MudButton>
+        <MudButton Style="color: #00C087" @onclick="ReportMessage">Report</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style scoped>
+    .mud-list,
+    .mud-tabs-toolbar,
+    .mud-tabs-toolbar-content,
+    .dialog {
+        background-color: #19191D !important;
+        color: #E2E2E2 !important;
+    }
+
+    .dialog {
+        width: 500px;
+        max-height: 550px;
+    }
+
+    .mud-tab {
+        color: #00C087 !important;
+    }
+
+    .mud-typography-h6 {
+        text-align: center;
+    }
+
+    textarea,
+    input {
+        color: #E2E2E2 !important;
+    }
+</style>
+
+
+@code {
+    [Parameter]
+    public ReportDTO? ReportedItem { get; set; }
+    [Parameter]
+    public MessageDTO? Message { get; set; }
+    [Parameter]
+    public ConversationDTO? Conversation { get; set; }
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    public async Task ReportMessage()
+    {
+        var jsonString = JsonConvert.SerializeObject(ReportedItem);
+
+        HttpContent httpContent = new StringContent(jsonString, Encoding.UTF8, "application/json");
+        var response = await Http.PostAsync($"/api/Report", httpContent);
+
+        if (response.IsSuccessStatusCode)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+
+    public async Task Close()
+    {
+        MudDialog.Close(DialogResult.Cancel());
+    }
+}

@@ -1,0 +1,28 @@
+﻿
+
+<style scoped>
+    .mud-list,
+    .mud-tabs-toolbar,
+    .mud-tabs-toolbar-content,
+    .dialog{
+        background-color: #19191D !important;
+        color: #E2E2E2 !important;
+    }
+
+    .dialog{
+        width: 500px;
+        max-height: 550px;
+    }
+
+    .mud-tab{
+        color: #00C087 !important;
+    }
+
+    .mud-typography-h6{
+        text-align: center;
+    }
+    textarea,
+    input{
+        color: #E2E2E2 !important;
+    }
+</style>

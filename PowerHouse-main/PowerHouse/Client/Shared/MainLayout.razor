@@ -1,0 +1,191 @@
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@using Microsoft.AspNetCore.SignalR.Client;
+@using Newtonsoft.Json;
+@using PowerHouse.Client.Services;
+@using PowerHouse.Shared.DTO;
+@using System.Net;
+@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject HttpClient _httpClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IAppState AppState
+@implements IDisposable
+@inherits LayoutComponentBase
+
+<MudThemeProvider/>
+<MudLayout>
+
+    @*NAVBAR*@
+    <MudAppBar Elevation="1" Style="background-color:#141417;">
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+            </Authorized>
+        </AuthorizeView>
+
+        <MudLink href="/" Typo="Typo.h5" Class="ml-3" Style="color: #00C087 !important; text-decoration: none !important;">Power House</MudLink>
+        <MudSpacer />
+        <div style="margin-right: 30px">
+            <AuthorizeView>
+              <Authorized>
+                    <MudMenu ActivationEvent="@MouseEvent.MouseOver" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Style="background-color: #19191D !important;">
+                        <ActivatorContent>
+                            <MudAvatar Style="background-color: #00C087">
+                                <MudIconButton Title="Profile" Icon="@Icons.Material.Filled.AccountCircle" Style="color: #19191D;" />
+                            </MudAvatar>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <MudMenuItem class="user-drop-down" href="authentication/Profile">Edit profile</MudMenuItem>
+                            <MudMenuItem class="user-drop-down" href="my-topics">My topics</MudMenuItem>
+                            <MudMenuItem class="user-drop-down" href="reports">My reports</MudMenuItem>
+                            <MudMenuItem class="user-drop-down" @onclick="BeginLogout">Sign Out</MudMenuItem>
+                            <MudMenuItem class="user-drop-down" href="gdpr">GDPR policy</MudMenuItem>
+                            <MudMenuItem class="user-drop-down delete-account" @onclick="async () => await DeleteUserAsync()">Delete my account</MudMenuItem>
+                        </ChildContent>
+                    </MudMenu>
+                </Authorized>
+                <NotAuthorized>
+                    <MudButton href="authentication/login" Variant="Variant.Filled" DisableElevation="true" Size="Size.Small" Style="color: #00C087;">Sign in</MudButton>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </MudAppBar>
+
+    <AuthorizeView>
+        <Authorized>
+            @*SIDEBAR*@
+            <MudDrawer @bind-Open="sideTopics" Class="side_topics" Style="background-color: #19191D;" ClipMode="DrawerClipMode.Always" Elevation="2">
+                <div>
+                    <MudText Typo="Typo.h6" Style="color: #00C087; margin-left: 10%; margin-top: 25px;">TOPICS</MudText>
+                    <MudDivider Style="color:#00C087; width: 150px; height: 2px; margin-left: 10%" />
+                </div>
+                <ul style="margin-top: 25px">
+                    @if(Conversations.Any())
+                    {
+                        @foreach (var topic in Conversations)
+                        {
+                            <li class="side_list_item" @onclick="() => NavigateToTopic(topic.Id)">
+                                # @topic.Topic
+                            </li>
+                        }
+                    }
+                    else
+                    {
+                        <p>No topics</p>
+                    }
+
+                </ul>
+                <div class="create_topic_btn">
+                    <MudButton Style="background-color: #00C087;" OnClick="OpenDialog">
+                        <span style="color: black; min-width: 200px; font-weight: 500;">CREATE TOPIC</span>
+                    </MudButton>
+                </div>
+            </MudDrawer>
+        </Authorized>
+    </AuthorizeView>
+    <MudMainContent Style="background-color: #0E0E10;">
+        <div class="main-container">
+             @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+
+<MudDialogProvider 
+    CloseOnEscapeKey="true"
+    CloseButton="true" 
+/>
+<MudSnackbarProvider />
+
+
+<style scoped>
+    .mud-popover{
+        margin-top: 8px !important;
+        background-color: #32323A !important;
+        color: #00C087 !important;
+    }
+
+    .main-container {
+        padding: 32px;
+    }
+    .side_list_item {
+        cursor: pointer;
+    }
+    .user-drop-down.delete-account {
+        color: red;
+    }
+</style>
+@code {
+    bool sideTopics = true;
+    public List<ConversationDTO> Conversations { get; set; } = new();
+    private static Guid currentConversationId;
+
+    protected override void OnInitialized()
+    {
+        AppState.OnChange += StateHasChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (_authState.User.Identity.IsAuthenticated)
+        {
+            var id = _authState?.User?.Claims?.FirstOrDefault(x => x.Type == "oid")?.Value ?? string.Empty;
+            var GetUserResult = await _httpClient.GetAsync($"api/user/{id}");
+            if (GetUserResult.IsSuccessStatusCode)
+            {
+                var data = await GetUserResult.Content.ReadAsStringAsync();
+                var user = JsonConvert.DeserializeObject<UserDTO>(data) ?? new UserDTO();
+                Conversations = user?.Conversations ?? new();
+            }
+        }
+    }
+
+    public void Dispose() => AppState.OnChange -= StateHasChanged;
+
+    void DrawerToggle()
+    {
+        sideTopics = !sideTopics;
+    }
+
+    private void BeginLogout(MouseEventArgs args)
+    {
+        NavigationManager.NavigateToLogout("authentication/logout");
+    }
+
+    private void OpenDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        DialogService.Show<CreateTopic>("", options);
+    }
+
+    private void NavigateToTopic(Guid id)
+    {
+        if (id != Guid.Empty)
+        {
+            NavigationManager.NavigateTo($"/topic/{id.ToString()}");
+            StateHasChanged();      
+        }
+    }
+
+    private async Task DeleteUserAsync()
+    {
+        var _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (_authState.User.Identity.IsAuthenticated)
+        {
+            Guid userId = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value);
+            UserDTO? user = null;
+
+            var response = await _httpClient.GetAsync($"/api/User/{userId.ToString().ToUpper()}");
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                var data = await response.Content.ReadAsStringAsync();
+                user = JsonConvert.DeserializeObject<UserDTO>(data);
+
+                DialogParameters parameters = new DialogParameters { ["User"] = user };
+                var dialog = await DialogService.ShowAsync<DeleteUserDialog>("Delete account", parameters);
+            }
+        }
+    }
+}

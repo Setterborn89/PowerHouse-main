@@ -1,0 +1,134 @@
+﻿@using Newtonsoft.Json;
+@using PowerHouse.Client.Services;
+@using PowerHouse.Shared.DTO;
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject HttpClient _httpClient
+@inject AuthenticationStateProvider authState
+@inject IAppState AppState
+
+<MudDialog Class="topic-container">
+	<DialogContent>
+		<EditForm Model="Conversation" OnValidSubmit="HandleSubmit" class="topic-modal">
+			<h2 class="topic-title">Create a topic</h2>	
+			<div class="topic-row">
+				<div class="item">
+					<span>Name</span>
+					<div class="input-container">
+						<InputText @bind-Value="Conversation.Topic" />
+						<DataAnnotationsValidator />
+						<ValidationSummary />
+					</div>
+				</div>
+				<div class="item">
+					<div class="form-check form-switch small m-0">
+						<input class="form-check-input" type="checkbox" role="slider" id="flexSwitchCheckDefault" @bind="Conversation.IsPublic" >
+					</div>
+					<span class="checkbox-text">Make public</span>
+				</div>
+			</div>
+			<div>
+
+				<MudButton OnClick="Cancel" 
+					Style="width: 150px;
+							color: white; 
+							background-color: #292A31; 
+							font-weight: 700;
+							border-radius: 0px;
+							font-size: 14px;
+							height: 28px;"
+				>CANCEL</MudButton>
+
+				<button type="submit" class="custom-button">Create</button>
+			</div>
+		</EditForm>
+	</DialogContent>
+</MudDialog>
+
+
+@code {
+
+	private PowerHouse.Shared.DTO.CreateTopicDTO Conversation { get; set; } = new();
+	[CascadingParameter] MudDialogInstance MudDialog { get; set; }
+	void Cancel() => MudDialog.Cancel();
+
+	private async Task HandleSubmit()
+	{
+		var state = await authState.GetAuthenticationStateAsync();
+		var id = state?.User?.Claims?.FirstOrDefault(x => x.Type == "oid")?.Value ?? string.Empty;
+		Conversation.AuthorId = new Guid(id);
+
+		PowerHouse.Shared.DTO.RegisterDTO author = new()
+		{
+			Id = Guid.Parse(state.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value),
+			Username = state.User.Identity.Name,
+			Email = state.User.Claims.Where(c => c.Type == "email").FirstOrDefault()?.Value
+		};
+		Conversation.Author = author;
+
+		var result = await _httpClient.PostAsJsonAsync("api/Conversation", Conversation);
+		if (result.IsSuccessStatusCode)
+		{
+			MudDialog.Close(DialogResult.Ok(true));
+			Snackbar.Add($"{Conversation.Topic} was created");
+			AppState.NotifyStateChanged();
+		}
+	}
+}
+
+<style scoped>
+	.topic-container {
+		width: 100%;
+		background-color: #32323A;
+	}
+	.topic-modal {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		padding: 24px;
+		width: 100%;
+		background-color: #32323A;
+		color: #F0F0F1;
+	}
+	.topic-title {
+		font-size: 20px;
+		font-weight: 700;
+		color: #00C087;
+		text-transform: uppercase;
+		margin: 0;
+	}
+	.topic-row {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+	.item {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.item input{
+		width: 100%;
+	}
+	.item input.valid{
+		background-color: #292A31;
+		color: #F0F0F1;
+		border: none;
+	}
+	.input-container{
+		width: 100%;
+	}
+	.checkbox-text {
+		font-size: 14px;
+	}
+	.custom-button {
+		background-color: #00C087;
+		border: unset;
+		text-transform: uppercase;
+		font-weight: 700;
+		padding: 4px 0;
+		width: 150px; 
+		left: 50%;
+		transform: translateX(-50%);
+	}
+</style>

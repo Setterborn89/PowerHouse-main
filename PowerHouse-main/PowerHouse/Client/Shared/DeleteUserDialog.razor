@@ -1,0 +1,45 @@
+﻿@using Newtonsoft.Json;
+@using PowerHouse.Client.Authorization;
+@using PowerHouse.Shared.DTO;
+@using System.Net;
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject HttpClient _httpClient
+@inject IDeleteAccount _deleteAccount
+@inject NavigationManager Navigation
+
+<MudDialog DisableSidePadding="true" class="dialog">
+    <DialogContent>
+        <MudContainer Style=" overflow-y: scroll; min-width 150px">
+            <MudTextField T="string" Label="Username" Variant="Variant.Filled" Text="@(User.Username)" Disabled />
+
+        </MudContainer>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" @onclick="Close">Close</MudButton>
+        <MudButton @onclick="async () => await DeleteAsync()">Remove</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public UserDTO User { get; set; }
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    private async Task DeleteAsync()
+    {
+        var response = await _httpClient.DeleteAsync($"/api/user/{User.Id}");
+        if (response != null)
+        {
+            Navigation.NavigateTo(_deleteAccount.GetLink());
+            MudDialog.Close(DialogResult.Ok("Ok"));
+        }
+    }
+
+    public void Close()
+    {
+
+        MudDialog.Cancel();
+    }
+
+
+}

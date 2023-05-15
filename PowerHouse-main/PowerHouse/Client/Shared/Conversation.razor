@@ -1,0 +1,477 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using PowerHouse.Client.Services;
+@using PowerHouse.Shared.DTO
+@using PowerHouse.Shared.AES_Encryptions
+@using System.Linq;
+@using Newtonsoft.Json;
+@using System.Net;
+@inject ISnackbar Snackbar
+@inject IAppState AppState
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager navigationManager
+@inject IJSRuntime _jsRuntime
+@inject IDialogService DialogService
+
+@if (ConversationDTO != null && ConversationDTO.Messages != null)
+{
+    <div class="chat-container" style="
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);">
+        <div style="width: 700px; display: flex">
+            @if (IsMember == false)
+            {
+                <div>
+                    <MudIconButton OnClick="SubscribeToConversation"
+                           Icon="@Icons.Material.Filled.AddCircle"
+                           aria-label="subscribe"
+                           Style="color: #00C087">
+                    </MudIconButton>
+                    <em style="color:#00C087">Subscribe to this topic</em>
+                </div>
+            }
+            else
+            {
+                <div>
+                    <MudIconButton OnClick="UnsubscribeToConversation"
+                           Icon="@Icons.Material.Filled.RemoveCircle"
+                           aria-label="subscribe"
+                           Style="color: #00C087">
+                    </MudIconButton>
+                    <em style="color:#00C087">Unsubscribe to this topic</em>
+                </div>
+            }
+            <div style="margin-left: auto; margin-right: 5px">
+                <MudIconButton OnClick="ReportConversation"
+                           Icon="@Icons.Material.Filled.Report"
+                           aria-label="report"
+                           Style="color: #292A31">
+                </MudIconButton>
+                <em style="color: #292A31">Report this topic</em>
+            </div>
+        </div>
+        <div class="topic">
+            <span class="title">#@ConversationDTO.Topic</span>
+            @*Dropdown för alla användare*@
+            <div class="conversation_functions">
+                <div class="all_members_size">
+                    <MudList Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Groups" Style="color: black; background-color: #00C087;">
+                            <NestedList>
+                                <div class="members_list_styling">
+                                    @foreach (var member in ConversationDTO.Users)
+                                    {
+                                        <div>
+                                            <MudListItem>
+                                                <div>
+                                                    <span class="member_styling">@member.Username</span>
+                                                    @if (IsAdmin || IsMod)
+                                                    {
+                                                        @if (member.Id != CurrentUserId && member.Id != ConversationDTO.AuthorId)
+                                                        {
+                                                            <MudIconButton OnClick="() => RemoveMember(member.Id, ConversationDTO.Id, member.Username)"
+                                                           Icon="@Icons.Material.Filled.PersonRemove"
+                                                           aria-label="delete"
+                                                           Style="position: absolute; right: 0; top: 0; color: black">
+                                                            </MudIconButton>
+                                                        }
+                                                    }
+                                                    @if (member.Id == ConversationDTO.AuthorId)
+                                                    {
+                                                        <MudIcon Icon="@Icons.Material.Filled.Shield" />
+                                                    }
+                                                </div>
+                                            </MudListItem>
+                                        </div>
+                                    }
+                                </div>
+                            </NestedList>
+                        </MudListItem>
+                    </MudList>
+                </div>
+                @if (IsAdmin || IsMod)
+                {
+                    <div class="add_member">
+                        <input class="input_email" name="userMail" @bind="NewUserMail" type="email" placeholder="Add User by Email">
+                        <MudButton Variant="Variant.Filled" OnClick="() => AddMember()" Style="color: #00C087; max-height: 56px">ADD</MudButton>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="conversation_size">
+            <div class="conversation" id="chatContainer">
+                <div class="message">
+                    @foreach (MessageDTO message in ConversationDTO.Messages)
+                    {
+                        @if (message.Author != null)
+                        {
+                            @if (message.AuthorId == CurrentUserId)
+                            {
+                                @if (message.Author != null)
+                                {
+
+
+                                    @if (message.AuthorId == CurrentUserId)
+                                    {
+                                        <div class="sender">
+                                            <MessageCard Message="@message" EditItem="@(() => UpdateMessage(message))" DeleteItem="@(() => DeleteMessage(@message.Id))" TopicAuthorId="@ConversationDTO.AuthorId" />
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <MessageCard Message="@message" EditItem="@(() => UpdateMessage(message))" DeleteItem="@(() => DeleteMessage(@message.Id))" TopicAuthorId="@ConversationDTO.AuthorId" />
+                                    }
+
+                                }
+                            }
+                            else
+                            {
+                                <MessageCard Message="@message" DeleteItem="@(() => DeleteMessage(@message.Id))" TopicAuthorId="@ConversationDTO.AuthorId" />
+                            }
+                        }
+                    }
+                </div>
+            </div>
+            <EditForm OnValidSubmit="async () => {await SendMessage(Message.Text);}" Model="@Message" class="send-message-container">
+                <DataAnnotationsValidator /> <ValidationSummary />
+                <InputText type="text" class="input-box" @bind-Value="Message.Text" />
+                <button class="send-button" type="submit">Send</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<style scoped>
+
+    .send-message-container {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 48px;
+        background-color: #141417;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .input-box {
+        height: 28px;
+        flex-grow: 1;
+        border-radius: 50px;
+        padding: 0 16px;
+        border: unset;
+        font-size: 14px;
+        background-color: #292A31;
+        color: #F0F0F1;
+    }
+
+    .title {
+        display: inline-block;
+        min-width: 200px;
+        padding: 4px 16px;
+        background-color: #00C087;
+        font-size: 20px;
+        color: #000;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .message {
+        display: flex;
+        margin: 16px 0;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+        .message .sender {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+    .send-button {
+        color: #D2D2D6;
+        cursor: pointer;
+    }
+
+        .send-button:hover {
+            color: #00C087;
+        }
+
+    .topic {
+        height: 130px;
+        max-width: 700px;
+        min-width: 400px;
+        overflow: visible;
+    }
+
+    .conversation {
+        margin-top: 16px;
+        height: 100%;
+        overflow-y: scroll;
+        background-color: #19191D;
+        padding: 16px;
+        overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar {
+        display: none;
+    }
+
+    .title {
+        padding: 4px 16px;
+        background-color: #00C087;
+        font-size: 20px;
+        color: #000;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .conversation_size {
+        height: 60vh;
+        max-width: 700px;
+    }
+
+    
+
+
+</style>
+
+
+@code {
+    private HubConnection? connection;
+    [Parameter]
+    public EventCallback<bool> DeleteItem { get; set; }
+    [Parameter]
+    public EventCallback<bool> EditItem { get; set; }
+    [Parameter]
+    public Guid ConversationId { get; set; }
+    public MessageDTO Message { get; set; } = new();
+    public ConversationDTO ConversationDTO { get; set; } = new ConversationDTO();
+    private AuthenticationState _authState;
+    public bool IsAdmin { get; set; }
+    public bool IsMod { get; set; }
+    public bool IsMember { get; set; }
+    public Guid CurrentUserId { get; set; }
+    public string NewUserMail { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ConversationDTO = await GetConversationAsync();
+        _authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        CurrentUserId = new Guid(_authState?.User?.Claims?.FirstOrDefault(x => x.Type == "oid")?.Value ?? "00000000-0000-0000-0000-000000000000");
+        if (_authState.User.IsInRole("Admin")) { IsAdmin = true; }
+        if (ConversationDTO.AuthorId == CurrentUserId) { IsMod = true; }
+
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        ConversationDTO = await GetConversationAsync();
+        if (firstRender)
+        {
+            await _jsRuntime.InvokeAsync<string>("ScrollToBottom", "chatContainer");
+        }
+        if(ConversationDTO.Users is not null)
+        {
+            foreach (var item in ConversationDTO.Users) { if (item.Id == CurrentUserId) { IsMember = true; } }
+        }
+        
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (connection != null)
+        {
+            await Dispose();
+        }
+
+        ConversationDTO = await GetConversationAsync();
+        ConversationDTO.Author = await GetAuthorAsync(ConversationDTO.AuthorId);
+
+        #region SignalR
+
+        connection = new HubConnectionBuilder()
+            .WithUrl("https://powerhouseserver.azurewebsites.net/messages")
+            .WithAutomaticReconnect()
+            .Build();
+        connection.On<MessageDTO>("RecieveMessage", async (MessageDTO messageDTO) =>
+        {
+            ConversationDTO.Messages.Add(messageDTO);
+            await _jsRuntime.InvokeAsync<string>("ScrollToBottom", "chatContainer");
+            StateHasChanged();
+        });
+
+        connection.On<MessageDTO>("RecieveUpdate", (messageDTO) =>
+        {
+            MessageDTO message = ConversationDTO.Messages.FirstOrDefault(x => x.Id == messageDTO.Id);
+            message.EditDate = messageDTO.EditDate;
+            message.IsEdited = messageDTO.IsEdited;
+            message.Text = messageDTO.Text;
+            StateHasChanged();
+
+
+        });
+
+        connection.On<MessageDTO>("RecieveDeleted", (messageDTO) =>
+        {
+            MessageDTO message = ConversationDTO.Messages.FirstOrDefault(x => x.Id == messageDTO.Id);
+            message.IsDeleted = messageDTO.IsDeleted;
+            message.Text = messageDTO.Text;
+            StateHasChanged();
+        });
+
+        connection.On<string>("RecieveError", (string errorMessage) =>
+        {
+            Console.WriteLine(errorMessage);
+        });
+
+        await connection.StartAsync();
+        await connection.InvokeAsync("JoinConversation", ConversationId);
+        #endregion
+    }
+
+    public async Task SendMessage(string messageText)
+    {
+
+        if (_authState.User.Identity.IsAuthenticated)
+        {
+
+            PostMessageDTO message = new PostMessageDTO
+                {
+                    Text = messageText,
+                    Author = new RegisterDTO
+                    {
+                        Id = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value),
+                        Username = _authState.User.Identity.Name,
+                        Email = _authState.User.Claims.Where(c => c.Type == "email").FirstOrDefault()?.Value
+                    },
+                    ConversationId = ConversationId
+                };
+
+            await connection.SendAsync("SendMessageAsync", ConversationId, message);
+            this.Message = new();
+        }
+    }
+
+    public async Task UpdateMessage(MessageDTO updatedMessage)
+    {
+        await connection.SendAsync("UpdateMessageAsync", ConversationId, updatedMessage);
+    }
+
+    public async Task DeleteMessage(Guid messageId)
+    {
+        await connection.SendAsync("DeleteMessageAsync", ConversationId, messageId);
+    }
+    public async Task Dispose()
+    {
+        await connection.StopAsync();
+    }
+
+    public async Task<ConversationDTO> GetConversationAsync()
+    {
+        var response = await Http.GetAsync($"/api/conversation/{ConversationId}");
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var data = await response.Content.ReadAsStringAsync();
+            var content = JsonConvert.DeserializeObject<ConversationDTO>(data) ?? new ConversationDTO();
+            content.Author = await GetAuthorAsync(ConversationDTO.AuthorId);
+            return content;
+        }
+        else
+        {
+            return new ConversationDTO();
+        }
+    }
+
+    public async Task<UserDTO> GetAuthorAsync(Guid id)
+    {
+        var response = await Http.GetAsync($"/api/user/{id}");
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var data = await response.Content.ReadAsStringAsync();
+            return JsonConvert.DeserializeObject<UserDTO>(data) ?? new UserDTO();
+        }
+        else
+        {
+            return new UserDTO();
+        }
+    }
+
+    public async Task RemoveMember(Guid userId, Guid conversationId, string? username)
+    {
+        var input = new UserConversationDTO() { UserId = userId, ConversationId = conversationId };
+        var response = await Http.PostAsJsonAsync($"/api/conversation/removeuserfromconversation", input);
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            var name = username ?? "You";
+            Snackbar.Add($"{name} left {ConversationDTO.Topic}");
+            AppState.NotifyStateChanged();
+            StateHasChanged();
+        }
+    }
+
+    public async Task AddMember()
+    {
+        var input = new UserConversationDTO() { UserId = null, ConversationId = ConversationId, UserEmail = NewUserMail };
+        var response = await Http.PostAsJsonAsync($"/api/conversation/addusertoconversation", input);
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            Snackbar.Add($"User {NewUserMail} was added");
+            NewUserMail = string.Empty;
+            ConversationDTO = new();
+            await GetConversationAsync();
+        }
+        else
+        {
+            Snackbar.Add($"{NewUserMail} could not be found, or is already subscribed");
+        }
+    }
+
+    public async Task SubscribeToConversation()
+    {
+        var input = new UserConversationDTO() { UserId = CurrentUserId, ConversationId = ConversationId, UserEmail = _authState?.User?.Claims?.FirstOrDefault(c => c.Type == "email")?.Value ?? string.Empty };
+        var response = await Http.PostAsJsonAsync($"/api/conversation/addusertoconversation", input);
+        if (response.StatusCode == HttpStatusCode.OK)
+        {
+            Snackbar.Add($"You subscribed to {ConversationDTO.Topic}");
+            IsMember = true;
+            ConversationDTO = new();
+            await GetConversationAsync();
+            AppState.NotifyStateChanged();
+        }
+        else
+        {
+            Snackbar.Add($"Unable to subscribe to {ConversationDTO.Topic}, you must post some content before subscribing");
+        }
+    }
+
+    public async Task UnsubscribeToConversation()
+    {
+        if (ConversationDTO.AuthorId == CurrentUserId)
+        {
+            Snackbar.Add("Can't unsubscribe to your own topics, delete topic at my topics instead");
+        }
+        else
+        {
+            await RemoveMember(CurrentUserId, ConversationId, null);
+            navigationManager.NavigateTo("/");
+        }
+    }
+
+    public async Task ReportConversation()
+    {
+
+        ReportDTO reportedConversation = new()
+            {
+                ConversationId = this.ConversationId,
+                Type = PowerHouse.Shared.Enums.Type.Conversation,
+                ReporterId = Guid.Parse(_authState.User.Claims.Where(c => c.Type == "oid").FirstOrDefault()?.Value)
+            };
+
+        DialogParameters parameters = new DialogParameters { ["ReportedItem"] = reportedConversation, ["Conversation"] = ConversationDTO };
+
+        var dialog = await DialogService.ShowAsync<ReportMessageModal>("Report items", parameters);
+        DialogResult result = await dialog.Result;
+    }
+}

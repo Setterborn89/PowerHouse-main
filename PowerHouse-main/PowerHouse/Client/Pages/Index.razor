@@ -1,0 +1,70 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@using PowerHouse.Client.Services;
+@using PowerHouse.Shared.DTO
+@using System.Linq;
+@inject PublicClient PublicClient
+@inject NavigationManager navigationManager
+@inject AuthenticationStateProvider authProvider
+@inject IAppState AppState
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject IDialogService dialogService
+@page "/"
+
+<PageTitle>Index</PageTitle>
+<PageTitle>Index</PageTitle>
+<TopicsContainer Conversations="Topics" Title="DISCOVER" NavigateClick="NavigateToTopicAsync" />
+<TopicsContainer Conversations="PopularTopics" Title="POPULAR" NavigateClick="NavigateToTopicAsync" />
+
+@code {
+    bool sideTopics = true;
+
+    public List<ConversationDTO> Topics { get; set; } = new();
+    public List<ConversationDTO> PopularTopics { get; set; } = new();
+    public bool IsLoggedIn { get; set; } = false;
+    public bool Consent { get; set; }
+
+    void DrawerToggle()
+    {
+        sideTopics = !sideTopics;
+    }
+
+    protected async override Task OnInitializedAsync()
+    {
+        var consent = await sessionStorage.GetItemAsync<string>("consent");
+        Consent = String.IsNullOrEmpty(consent) ? false : true;
+
+        if (!Consent)
+        {
+            dialogService.Show<ConsentDialog>("");
+        }
+
+        var state = await authProvider.GetAuthenticationStateAsync();
+        IsLoggedIn = state?.User?.Identity?.IsAuthenticated ?? false;
+        await GetTopics();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await GetTopics();
+        if (IsLoggedIn) { AppState.NotifyStateChanged(); }
+    }
+
+    private void NavigateToTopicAsync(Guid id)
+    {
+        if (IsLoggedIn)
+        {
+            navigationManager.NavigateTo($"/topic/{id.ToString()}");
+            StateHasChanged();
+        }
+        else
+        {
+            navigationManager.NavigateTo("/authentication/login");
+        }
+    }
+
+    private async Task GetTopics()
+    {
+        Topics = await PublicClient.GetPublicConversations();
+        PopularTopics = await PublicClient.GetMostPopularConversations();
+    }
+}

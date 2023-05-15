@@ -1,0 +1,25 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject NavigationManager navigationManager
+<RemoteAuthenticatorView Action="@Action" />
+
+
+    <h1>@Message</h1>
+
+
+@code{
+    [Parameter] public string? Action { get; set; }
+    public string Message { get; set; }
+    protected override async Task OnParametersSetAsync()
+    {
+
+        switch(this.Action)
+        {
+            case "login-failed":
+                Message = "You will soon be redirected to the start page";
+                await Task.Delay(1000);
+                navigationManager.NavigateTo("/");
+                break;
+        }
+    }
+}
